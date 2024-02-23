@@ -43,7 +43,7 @@ pnts <- pnts %>%
 aoi <- st_bbox(pnts) %>% st_as_sfc() %>% st_as_sf()
 
 #Convert to planar coordinates
-aoi <- st_transform(aoi, crs = st_crs("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs +type=crs"))
+#aoi <- st_transform(aoi, crs = st_crs("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs +type=crs"))
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #3.0 Gather publicly available data --------------------------------------------
@@ -63,7 +63,10 @@ output_files <- get_tiles(pnts ,
     resolution = 10)
 naip_all_sites <- raster::brick(output_files[["ortho"]][[1]])
 
-#3.4 Delineate watersheds using NHD data ---------------------------------------
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#4.0 Hydrologic Analyses -------------------------------------------------------
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#4.1 Watershed Delineation -----------------------------------------------------
 #Delineate Greensboro Watershed ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Gage 01491000 (https://waterdata.usgs.gov/monitoring-location/01491000)
 green_gage_shp <- 
@@ -124,7 +127,7 @@ subset <- subset_nhdplus(comids = as.integer(t_flow_net$UT$nhdplus_comid),
 t_shed <- sf::read_sf(subset_file, "CatchmentSP")
 t_shed <- st_union(t_shed)
 
-#3.5 Create wetland polygons using wbt workflow --------------------------------
+#4.2 Wetland Delineation -------------------------------------------------------
 #Create temp dir
 temp_dir <- tempdir()
 
@@ -172,11 +175,10 @@ wbt_raster_to_vector_polygons(
 wetlands <- st_read(paste0(temp_dir,"//wetlands.shp"))
 
 #Subset wetlands to sites
-wetlands <- wetlands[pnts,]
+wetland_sites <- wetlands[pnts,]
 
 #plot for funzies
 mapview(wetlands) + mapview(pnts)
-
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #4.0 Plot Figure ---------------------------------------------------------------
@@ -195,6 +197,8 @@ state_map <- states %>%
 
 
 #4.3 Create panel of study landscape ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+plotRGB(naip_all_sites, scale = 1)
+plot(wetlands, add=T, col="blue")
 
 
 #4.4 Create panels of wetland complexes ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
