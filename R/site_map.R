@@ -22,6 +22,7 @@ library(elevatr)   #DEM download
 library(tigris)    #State shape download
 library(nhdplusTools) #nhdplus download
 library(terrainr)  #Download NAIP imagery
+library(ggspatial)
 library(patchwork)
 
 #load site locations
@@ -235,27 +236,106 @@ mapview(complex_4)
 #Create boxes around each complex
 box_fun<-function(xy){
   #Define bounding box
-  box <- xy %>% st_bbox() 
-  x <- (box$xmin + box$xmax)/2
-  y <- (box$ymin + box$ymax)/2
+  box <- xy %>% 
+    #Define box around points
+    st_bbox() %>% st_as_sfc() %>% st_as_sf() %>% 
+    #Define Centroid of bbox
+    st_centroid() %>% 
+    #Add buffer to centroid
+    st_buffer(0.003) %>% 
+    #Define bbox of buffer
+    st_bbox() %>% st_as_sfc() %>% st_as_sf()
   
-  #Define new box
-  data.frame(
-      x = c(x+0.00045, x+0.00045, x-0.00045, x-0.00045),
-      y = c(y+0.00045, y-0.00045, y+0.00045, y-0.00045)) %>% 
-    as.matrix() %>% 
-    st_polygonize()
+  #export box
+  box
 }
 
-complex_2 %>% st_bbox() %>% st_as_sfc() %>% st_as_sf() %>% st_centroid() %>% mapview()
+#Define bbox for each wetland complex
+box_1 <- box_fun(complex_1)
+mapview(box_1) + mapview(complex_1)  
+
+box_2 <- box_fun(complex_2)
+mapview(box_2) + mapview(complex_2)  
+ 
+box_3 <- box_fun(complex_3)
+mapview(box_3) + mapview(complex_3)  
+
+box_4 <- box_fun(complex_4)
+mapview(box_4) + mapview(complex_4)    
+  
+#Crop DEM for each complex
+dem_1 <- crop(dem, box_1) %>% rasterToPoints() %>% as_tibble()
+  colnames(dem_1) <- c("x", "y", "z")
+dem_2 <- crop(dem, box_2) %>% rasterToPoints() %>% as_tibble()
+  colnames(dem_2) <- c("x", "y", "z")
+dem_3 <- crop(dem, box_3) %>% rasterToPoints() %>% as_tibble()
+  colnames(dem_3) <- c("x", "y", "z")
+dem_4 <- crop(dem, box_4) %>% rasterToPoints() %>% as_tibble()
+  colnames(dem_4) <- c("x", "y", "z")
+  
+#Crop wetlands for each complex
+wetlands_1 <- wetlands[box_1,]
+wetlands_2 <- wetlands[box_2,]
+wetlands_3 <- wetlands[box_3,]
+wetlands_4 <- wetlands[box_4,]
+
+#create wetland complex maps ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#Complex map 1
+complex_map_1 <-ggplot() +
+  geom_sf(data=box_1, bg=NA, col=NA) +
+  geom_raster(data = dem_1, aes(x,y,fill=z)) +
+  scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
+  geom_sf(data = wetlands_1, bg="darkblue", alpha=0.5) +
+  coord_sf(
+     xlim = c(st_coordinates(box_1)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_1)[,1] %>% max(., na.rm = T)-0.00025), 
+     ylim = c(st_coordinates(box_1)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_1)[,2] %>% max(., na.rm = T)- 0.0003)) +
+  theme_void()
+complex_map_1
+  
+#Complex map 2
+complex_map_2 <-ggplot() +
+  geom_sf(data=box_2, bg=NA, col=NA) +
+  geom_raster(data = dem_2, aes(x,y,fill=z)) +
+  scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
+  geom_sf(data = wetlands_2, bg="darkblue", alpha=0.5) +
+  coord_sf(
+    xlim = c(st_coordinates(box_2)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_2)[,1] %>% max(., na.rm = T)-0.00025), 
+    ylim = c(st_coordinates(box_2)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_2)[,2] %>% max(., na.rm = T)- 0.0003)) +
+  theme_void()
+complex_map_2
+
+#Complex map 3
+complex_map_3 <-ggplot() +
+  geom_sf(data=box_3, bg=NA, col=NA) +
+  geom_raster(data = dem_3, aes(x,y,fill=z)) +
+  scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
+  geom_sf(data = wetlands_3, bg="darkblue", alpha=0.5) +
+  coord_sf(
+    xlim = c(st_coordinates(box_3)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_3)[,1] %>% max(., na.rm = T)-0.00025), 
+    ylim = c(st_coordinates(box_3)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_3)[,2] %>% max(., na.rm = T)- 0.0003)) +
+  theme_void()
+complex_map_3
+
+#Complex map 4
+complex_map_4 <-ggplot() +
+  geom_sf(data=box_4, bg=NA, col=NA) +
+  geom_raster(data = dem_4, aes(x,y,fill=z)) +
+  scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
+  geom_sf(data = wetlands_4, bg="darkblue", alpha=0.5) +
+  coord_sf(
+    xlim = c(st_coordinates(box_4)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_4)[,1] %>% max(., na.rm = T)-0.00025), 
+    ylim = c(st_coordinates(box_4)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_4)[,2] %>% max(., na.rm = T)- 0.0003)) +
+  theme_void()
+complex_map_4
+
 
 #6.5 Create panels of wetland complexes ----------------------------------------
-state_map + shed_map + aoi_map
+(state_map | shed_map | aoi_map)/
+  (complex_map_1 | complex_map_2 | complex_map_3 | complex_map_4) +
+  plot_layout(heights = c(1.5,1)) +
+  plot_annotation(tag_levels = c("a"), tag_suffix = ")")
 
-
-
-
-
+ggsave("docs/site_map.png", width = 7, height = 5, units = "in", dpi = 300)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Code Graveyard ----------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
