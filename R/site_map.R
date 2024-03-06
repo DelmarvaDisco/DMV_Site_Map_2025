@@ -22,11 +22,11 @@ library(elevatr)   #DEM download
 library(tigris)    #State shape download
 library(nhdplusTools) #nhdplus download
 library(terrainr)  #Download NAIP imagery
-library(dataRetrieval)
 library(patchwork)
 
 #load site locations
 pnts <- read_xlsx('data//site_locations.xlsx')
+wetland_data<- read_csv('data//wetland_info_table.csv')
 
 #Turn off spherical geometry with sf
 sf_use_s2(FALSE)
@@ -292,13 +292,21 @@ wetlands_2 <- wetlands[box_2,]
 wetlands_3 <- wetlands[box_3,]
 wetlands_4 <- wetlands[box_4,]
 
+#Crop study sites for each complex
+wetland_sites_1 <- wetland_sites[box_1,]
+wetland_sites_2 <- wetland_sites[box_2,]
+wetland_sites_3 <- wetland_sites[box_3,]
+wetland_sites_4 <- wetland_sites[box_4,]
+
+
 #create wetland complex maps ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Complex map 1
 complex_map_1 <-ggplot() +
   geom_sf(data=box_1, bg=NA, col=NA) +
   geom_raster(data = dem_1, aes(x,y,fill=z)) +
   scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
-  geom_sf(data = wetlands_1, bg="darkblue", alpha=0.5) +
+  geom_sf(data = wetlands_1, bg="darkblue", alpha=0.25) +
+  geom_sf(data = wetland_sites_1, bg="darkblue", alpha=0.95) +
   coord_sf(
      xlim = c(st_coordinates(box_1)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_1)[,1] %>% max(., na.rm = T)-0.00025), 
      ylim = c(st_coordinates(box_1)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_1)[,2] %>% max(., na.rm = T)- 0.0003)) +
@@ -310,7 +318,8 @@ complex_map_2 <-ggplot() +
   geom_sf(data=box_2, bg=NA, col=NA) +
   geom_raster(data = dem_2, aes(x,y,fill=z)) +
   scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
-  geom_sf(data = wetlands_2, bg="darkblue", alpha=0.5) +
+  geom_sf(data = wetlands_2, bg="darkblue", alpha=0.25) +
+  geom_sf(data = wetland_sites_2, bg="darkblue", alpha=0.95) +
   coord_sf(
     xlim = c(st_coordinates(box_2)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_2)[,1] %>% max(., na.rm = T)-0.00025), 
     ylim = c(st_coordinates(box_2)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_2)[,2] %>% max(., na.rm = T)- 0.0003)) +
@@ -322,7 +331,8 @@ complex_map_3 <-ggplot() +
   geom_sf(data=box_3, bg=NA, col=NA) +
   geom_raster(data = dem_3, aes(x,y,fill=z)) +
   scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
-  geom_sf(data = wetlands_3, bg="darkblue", alpha=0.5) +
+  geom_sf(data = wetlands_3, bg="darkblue", alpha=0.25) +
+  geom_sf(data = wetland_sites_3, bg="darkblue", alpha=0.95) +
   coord_sf(
     xlim = c(st_coordinates(box_3)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_3)[,1] %>% max(., na.rm = T)-0.00025), 
     ylim = c(st_coordinates(box_3)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_3)[,2] %>% max(., na.rm = T)- 0.0003)) +
@@ -334,34 +344,30 @@ complex_map_4 <-ggplot() +
   geom_sf(data=box_4, bg=NA, col=NA) +
   geom_raster(data = dem_4, aes(x,y,fill=z)) +
   scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
-  geom_sf(data = wetlands_4, bg="darkblue", alpha=0.5) +
+  geom_sf(data = wetlands_4, bg="darkblue", alpha=0.25) +
+  geom_sf(data = wetland_sites_4, bg="darkblue", alpha=0.95) +
   coord_sf(
     xlim = c(st_coordinates(box_4)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_4)[,1] %>% max(., na.rm = T)-0.00025), 
     ylim = c(st_coordinates(box_4)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_4)[,2] %>% max(., na.rm = T)- 0.0003)) +
   theme_void()
 complex_map_4
 
-# 6.6 Wetland Hydrograph -------------------------------------------------------
-#Download daily flow data from NWIS (nwis.usgs.gov)
-waterLevel<-readNWISdv(siteNumbers = '01491000', 
-               parameterCd = '00060', 
-               startDate = '2021-10-01', 
-               endDate = '2022-09-30')
-
-#Tidy data
-waterLevel<-waterLevel %>% 
-  dplyr::select(date = Date, 
-         flow = X_00060_00003) %>% 
-  mutate(date = ymd(date))
+# 6.6 Wetland info plot --------------------------------------------------------
+#tidy data
+wetland_data <- wetland_data %>% 
+  dplyr::select(area_m2, perimeter_m, hand_m) %>% 
+  drop_na()
 
 #hydrograph
-hydro_plot <- waterLevel %>% 
+wetland_area_plot <- wetland_data %>% 
   #Start ggplot object
-  ggplot(aes(x=date, y=flow)) + 
+  ggplot(aes(x=area_m2 , y=perimeter_m)) + 
   #Add line data
-  geom_line(lwd=0.4, col="darkblue") +
+  geom_point(pch=19, cex=3, col="grey20") +
+  #Add best fit line
+  geom_smooth(method='lm', formula= y~x, lty=2, lwd=1.1, col="grey30", se=F) +
   #Plot y-axis in log scale
-  scale_y_log10() +
+  scale_x_log10() +
   #Add predefined black/white theme
   theme_bw() +
   #Change font size of axes
@@ -370,20 +376,42 @@ hydro_plot <- waterLevel %>%
     axis.text  = element_text(size = 8)
   ) + 
   #Add labels
-  xlab(NULL) + 
-  ylab("Flow [cfs]") 
+  xlab(expression("Wetland Area (m"^"2"*")")) + 
+  ylab("Wetland Perimeter (m)") 
+wetland_area_plot
+
+wetland_hand_plot <- wetland_data %>% 
+  #Start ggplot object
+  ggplot(aes(x=hand_m , y=perimeter_m)) + 
+  #Add line data
+  geom_point(pch=19, cex=3, col="grey20") +
+  #Add best fit line
+  #geom_smooth(method='lm', formula= y~x, lty=2, lwd=1.1, col="grey30", se=F) +
+  #Plot y-axis in log scale
+  scale_x_log10() +
+  #Add predefined black/white theme
+  theme_bw() +
+  #Change font size of axes
+  theme(
+    axis.title = element_text(size = 10), 
+    axis.text  = element_text(size = 8)
+  ) + 
+  #Add labels
+  xlab(expression("Wetland Area (m"^"2"*")")) + 
+  ylab("Height Above Nearest Drainage (m)") 
+wetland_hand_plot
 
 #6.7 Create panels of wetland complexes ----------------------------------------
 design <- "ABBCCCC
            #BBCCCC
            #BBCCCC
            #BBCCCC
-           DEHHHHH
-           DEHHHHH
-           FGHHHHH
-           FGHHHHH"
+           #DEHHH#
+           #DEHHH#
+           #FGHHH#
+           #FGHHH#"
            
-(state_map + shed_map + free(aoi_map) + free(complex_map_1) + free(complex_map_2) + free(complex_map_3) + free(complex_map_4) + free(hydro_plot)) +
+(state_map + shed_map + (aoi_map) + free(complex_map_1) + free(complex_map_2) + free(complex_map_3) + free(complex_map_4) + free(wetland_area_plot)) +
   plot_layout(design = design) +
   plot_annotation(tag_levels = c("a"), tag_suffix = ")") &
   theme(plot.tag = element_text(size = 10))
