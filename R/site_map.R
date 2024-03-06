@@ -22,7 +22,7 @@ library(elevatr)   #DEM download
 library(tigris)    #State shape download
 library(nhdplusTools) #nhdplus download
 library(terrainr)  #Download NAIP imagery
-library(ggspatial)
+library(dataRetrieval)
 library(patchwork)
 
 #load site locations
@@ -56,7 +56,8 @@ states <- states(cb=T, resolution='500k') %>%
 dem <- get_elev_raster(aoi, z=14)
 
 #3.3 Download aerial imagery ---------------------------------------------------
-output_files <- get_tiles(aoi ,
+dem_aoi <- st_bbox(dem) %>% st_as_sfc() %>% st_as_sf()
+output_files <- get_tiles(dem_aoi ,
     output_prefix = tempfile(),
     services = c("ortho"), 
     resolution = 10)
@@ -183,46 +184,7 @@ mapview(wetlands) + mapview(pnts)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #6.0 Plot Figure ---------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#6.1 Create regional location panel --------------------------------------------
-state_map <- states %>% 
-  ggplot() + 
-  geom_sf() + 
-  geom_sf(data = shed, bg="grey60") +
-  coord_sf(xlim=c(-77,-75), ylim = c(36.75, 40), clip="on")+
-  theme_bw()
-state_map
-
-#6.2 Create panel of Greensboro watershed --------------------------------------
-shed_map <- ggplot() + 
-  geom_sf(data = shed,col="grey20", lwd=1.2) +
-  geom_sf(data = nwi, col="darkgreen", alpha=0.3) +
-  geom_sf(data = flow_net, col='darkblue', lwd=1.05, alpha = 0.7) + 
-  geom_sf(data = shed,col="grey20", bg=NA, lwd=1.2) +
-  geom_sf(data = aoi, lwd=1.3, col='darkred', bg = NA) +
-  theme_void()
-shed_map
-
-#6.3 Create panel of study landscape -------------------------------------------
-#Use this approach to print NAIP imagery (https://medium.com/@tobias.stalder.geo/plot-rgb-satellite-imagery-in-true-color-with-ggplot2-in-r-10bdb0e4dd1f)
-#Convert NAIP image to dataframe
-df <- as.data.frame(naip_all_sites, xy=TRUE) %>% 
-  as_tibble() %>% 
-  filter(lyr.3!=0)
-
-#Plot 
-aoi_map <- ggplot() +                    
-    geom_sf(data = aoi)+
-    geom_raster(
-      data = df,
-      aes(x = x, y =y),
-      fill = rgb(r = df$lyr.1, g = df$lyr.2, b = df$lyr.3, maxColorValue = 1),
-      show.legend = FALSE) +
-    geom_sf(data = wetlands, col = NA, bg="darkblue", alpha = .5) +
-    scale_fill_identity()+ 
-  theme_void()
-aoi_map
-
-# 6.4 Plot wetland complexes ---------------------------------------------------
+#6.0 Create AOI for plots ------------------------------------------------------
 #Define wetland complexs
 complex_1 <- pnts %>% filter(Property == 'Baltimore Corner North' )
 mapview(complex_1)
@@ -256,13 +218,64 @@ mapview(box_1) + mapview(complex_1)
 
 box_2 <- box_fun(complex_2)
 mapview(box_2) + mapview(complex_2)  
- 
+
 box_3 <- box_fun(complex_3)
 mapview(box_3) + mapview(complex_3)  
 
 box_4 <- box_fun(complex_4)
-mapview(box_4) + mapview(complex_4)    
-  
+mapview(box_4) + mapview(complex_4)  
+
+#6.1 Create regional location panel --------------------------------------------
+state_map <- states %>% 
+  ggplot() + 
+  geom_sf() + 
+  geom_sf(data = shed, bg="grey60") +
+  coord_sf(xlim=c(-77,-75), ylim = c(36.75, 40), clip="on")+
+  theme_bw() + 
+  theme(axis.text = element_text(size = 8)) +
+  scale_x_continuous(breaks=c(-77,-75)) +
+  scale_y_continuous(breaks = c(37, 38, 39, 40))
+state_map
+
+#6.2 Create Choptank Watershed Map ---------------------------------------------
+shed_map <- ggplot() + 
+  geom_sf(data = shed,col="grey20", lwd=0.1) +
+  geom_sf(data = nwi, bg="darkgreen", lwd=NA) +
+  geom_sf(data = flow_net, col='darkblue', lwd=0.3, alpha = 0.7) + 
+  geom_sf(data = shed,col="grey20", bg=NA, lwd=0.5) +
+  geom_sf(data = aoi, lwd=1.3, col='darkred', bg = NA) +
+  theme_void()
+shed_map
+
+#6.3 Create panel of study landscape -------------------------------------------
+#Use this approach to print NAIP imagery (https://medium.com/@tobias.stalder.geo/plot-rgb-satellite-imagery-in-true-color-with-ggplot2-in-r-10bdb0e4dd1f)
+#Convert NAIP image to dataframe
+df <- as.data.frame(naip_all_sites, xy=TRUE) %>% 
+  as_tibble() %>% 
+  filter(lyr.3!=0) %>% 
+  filter(x >= st_bbox(wetlands)$xmin) %>%
+  filter(x <= st_bbox(wetlands)$xmax) %>% 
+  filter(y >= st_bbox(wetlands)$ymin) %>%
+  filter(y <= st_bbox(wetlands)$ymax)
+
+#Plot 
+aoi_map <- ggplot() +                    
+    geom_sf(data = aoi)+
+    geom_raster(
+      data = df,
+      aes(x = x, y =y),
+      fill = rgb(r = df$lyr.1, g = df$lyr.2, b = df$lyr.3, maxColorValue = 1),
+      show.legend = FALSE) +
+    geom_sf(data = wetlands, col = NA, bg="darkblue", alpha = .5) +
+    scale_fill_identity()+ 
+    geom_sf(data = box_1, col="darkred", bg=NA, lwd=1.2) +
+    geom_sf(data = box_2, col="darkred", bg=NA, lwd=1.2) +
+    geom_sf(data = box_3, col="darkred", bg=NA, lwd=1.2) +
+    geom_sf(data = box_4, col="darkred", bg=NA, lwd=1.2) +
+    theme_void()
+aoi_map
+
+# 6.4 Plot wetland complexes ---------------------------------------------------
 #Crop DEM for each complex
 dem_1 <- crop(dem, box_1) %>% rasterToPoints() %>% as_tibble()
   colnames(dem_1) <- c("x", "y", "z")
@@ -328,12 +341,50 @@ complex_map_4 <-ggplot() +
   theme_void()
 complex_map_4
 
+# 6.5 Wetland Hydrograph -------------------------------------------------------
+#Download daily flow data from NWIS (nwis.usgs.gov)
+waterLevel<-readNWISdv(siteNumbers = '01491000', 
+               parameterCd = '00060', 
+               startDate = '2021-10-01', 
+               endDate = '2022-09-30')
 
-#6.5 Create panels of wetland complexes ----------------------------------------
-(state_map | shed_map | aoi_map)/
-  (complex_map_1 | complex_map_2 | complex_map_3 | complex_map_4) +
-  plot_layout(heights = c(1.5,1)) +
+#Tidy data
+waterLevel<-waterLevel %>% 
+  dplyr::select(date = Date, 
+         flow = X_00060_00003) %>% 
+  mutate(date = ymd(date))
+
+#hydrograph
+hydro_plot <- waterLevel %>% 
+  #Start ggplot object
+  ggplot(aes(x=date, y=flow)) + 
+  #Add line data
+  geom_line(lwd=0.75, col="steelblue") +
+  #Plot y-axis in log scale
+  scale_y_log10() +
+  #Add predefined black/white theme
+  theme_bw() +
+  #Change font size of axes
+  theme(
+    axis.title = element_text(size = 10), 
+    axis.text  = element_text(size = 6)
+  ) + 
+  #Add labels
+  xlab(NULL) + 
+  ylab("Flow [cfs]") 
+
+#6.6 Create panels of wetland complexes ----------------------------------------
+design <- "ABBCCCC
+           #BBCCCC
+           #BBCCCC
+           DEHHHHH
+           DEHHHHH
+           FGHHHHH
+           FGHHHHH"
+           
+(state_map + shed_map + aoi_map + free(complex_map_1) + free(complex_map_2) + free(complex_map_3) + free(complex_map_4) + free(hydro_plot)) +
+  plot_layout(design = design) +
   plot_annotation(tag_levels = c("a"), tag_suffix = ")")
 
-ggsave("docs/site_map.png", width = 7, height = 5, units = "in", dpi = 300)
+ggsave("docs/site_map.png", width = 7, height = 5.5, units = "in", dpi = 300)
 
