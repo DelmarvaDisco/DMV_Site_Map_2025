@@ -6,7 +6,7 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 1.0 etup workspace -----------------------------------------------------------
+# 1.0 Setup workspace -----------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Clear memory
 remove(list=ls())
@@ -184,7 +184,7 @@ mapview(wetlands) + mapview(pnts)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #6.0 Plot Figure ---------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#6.0 Create AOI for plots ------------------------------------------------------
+#6.1 Create AOI for plots ------------------------------------------------------
 #Define wetland complexs
 complex_1 <- pnts %>% filter(Property == 'Baltimore Corner North' )
 mapview(complex_1)
@@ -225,7 +225,7 @@ mapview(box_3) + mapview(complex_3)
 box_4 <- box_fun(complex_4)
 mapview(box_4) + mapview(complex_4)  
 
-#6.1 Create regional location panel --------------------------------------------
+#6.2 Create regional location panel --------------------------------------------
 state_map <- states %>% 
   ggplot() + 
   geom_sf() + 
@@ -237,7 +237,7 @@ state_map <- states %>%
   scale_y_continuous(breaks = c(37, 38, 39, 40))
 state_map
 
-#6.2 Create Choptank Watershed Map ---------------------------------------------
+#6.3 Create Choptank Watershed Map ---------------------------------------------
 shed_map <- ggplot() + 
   geom_sf(data = shed,col="grey20", lwd=0.1) +
   geom_sf(data = nwi, bg="darkgreen", lwd=NA) +
@@ -247,7 +247,7 @@ shed_map <- ggplot() +
   theme_void()
 shed_map
 
-#6.3 Create panel of study landscape -------------------------------------------
+#6.4 Create panel of study landscape -------------------------------------------
 #Use this approach to print NAIP imagery (https://medium.com/@tobias.stalder.geo/plot-rgb-satellite-imagery-in-true-color-with-ggplot2-in-r-10bdb0e4dd1f)
 #Convert NAIP image to dataframe
 df <- as.data.frame(naip_all_sites, xy=TRUE) %>% 
@@ -275,7 +275,7 @@ aoi_map <- ggplot() +
     theme_void()
 aoi_map
 
-# 6.4 Plot wetland complexes ---------------------------------------------------
+# 6.5 Plot wetland complexes ---------------------------------------------------
 #Crop DEM for each complex
 dem_1 <- crop(dem, box_1) %>% rasterToPoints() %>% as_tibble()
   colnames(dem_1) <- c("x", "y", "z")
@@ -341,7 +341,7 @@ complex_map_4 <-ggplot() +
   theme_void()
 complex_map_4
 
-# 6.5 Wetland Hydrograph -------------------------------------------------------
+# 6.6 Wetland Hydrograph -------------------------------------------------------
 #Download daily flow data from NWIS (nwis.usgs.gov)
 waterLevel<-readNWISdv(siteNumbers = '01491000', 
                parameterCd = '00060', 
@@ -359,7 +359,7 @@ hydro_plot <- waterLevel %>%
   #Start ggplot object
   ggplot(aes(x=date, y=flow)) + 
   #Add line data
-  geom_line(lwd=0.75, col="steelblue") +
+  geom_line(lwd=0.4, col="darkblue") +
   #Plot y-axis in log scale
   scale_y_log10() +
   #Add predefined black/white theme
@@ -367,14 +367,15 @@ hydro_plot <- waterLevel %>%
   #Change font size of axes
   theme(
     axis.title = element_text(size = 10), 
-    axis.text  = element_text(size = 6)
+    axis.text  = element_text(size = 8)
   ) + 
   #Add labels
   xlab(NULL) + 
   ylab("Flow [cfs]") 
 
-#6.6 Create panels of wetland complexes ----------------------------------------
+#6.7 Create panels of wetland complexes ----------------------------------------
 design <- "ABBCCCC
+           #BBCCCC
            #BBCCCC
            #BBCCCC
            DEHHHHH
@@ -382,9 +383,10 @@ design <- "ABBCCCC
            FGHHHHH
            FGHHHHH"
            
-(state_map + shed_map + aoi_map + free(complex_map_1) + free(complex_map_2) + free(complex_map_3) + free(complex_map_4) + free(hydro_plot)) +
+(state_map + shed_map + free(aoi_map) + free(complex_map_1) + free(complex_map_2) + free(complex_map_3) + free(complex_map_4) + free(hydro_plot)) +
   plot_layout(design = design) +
-  plot_annotation(tag_levels = c("a"), tag_suffix = ")")
+  plot_annotation(tag_levels = c("a"), tag_suffix = ")") &
+  theme(plot.tag = element_text(size = 10))
 
 ggsave("docs/site_map.png", width = 7, height = 5.5, units = "in", dpi = 300)
 
