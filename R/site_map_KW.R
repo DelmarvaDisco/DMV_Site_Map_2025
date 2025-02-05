@@ -2,6 +2,7 @@
 # Title: Site Map
 # Coder: Nate Jones
 # Date: 11/9/2023
+# Updated: 2/5/2024 by Katie Wardinski
 # Purpose: Create publication quality map for wetland sites
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -18,6 +19,7 @@ library(raster)    #raster data
 library(sf)        #vector data
 library(mapview)   #interactive plotting
 library(whitebox)  #GIS
+#whitebox::install_whitebox()
 library(elevatr)   #DEM download
 library(tigris)    #State shape download
 library(nhdplusTools) #nhdplus download
@@ -30,6 +32,9 @@ wetland_data<- read_csv('data//wetland_info_table.csv')
 
 #Turn off spherical geometry with sf
 sf_use_s2(FALSE)
+
+#Turn on cache for using tigris package
+options(tigris_use_cache = TRUE)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 2.0 Create spatial data ------------------------------------------------------
@@ -124,11 +129,11 @@ outlet <-
 
 #Identify NHD reach 
 start_comid <- discover_nhdplus_id(outlet, raindrop = T)
-start_comid
+choptank_comid <- as.character(start_comid$comid[1])
 
 #Snag flowline
-flow_net <- navigate_nldi(list(featureSource = "comid", 
-                               featureID = start_comid$comid[1]), 
+flow_net <- navigate_nldi(list(featureSource = "nwissite", 
+                               featureID = "USGS-01491000"), 
                             mode = "upstreamTributaries", 
                             distance_km = 1000)
 
