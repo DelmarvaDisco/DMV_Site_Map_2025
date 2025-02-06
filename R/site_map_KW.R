@@ -128,12 +128,12 @@ outlet <-
     crs = 4326)
 
 #Identify NHD reach 
-start_comid <- discover_nhdplus_id(outlet, raindrop = T)
+start_comid <- discover_nhdplus_id(outlet, raindrop = F)
 choptank_comid <- as.character(start_comid$comid[1])
 
 #Snag flowline
-flow_net <- navigate_nldi(list(featureSource = "nwissite", 
-                               featureID = "USGS-01491000"), 
+flow_net <- navigate_nldi(list(featureSource = "comid", 
+                               featureID = start_comid$comid[1]), 
                             mode = "upstreamTributaries", 
                             distance_km = 1000)
 
