@@ -26,6 +26,7 @@ library(nhdplusTools) #nhdplus download
 library(terrainr)  #Download NAIP imagery
 library(patchwork)
 library(devEMF) #export map files
+library(ggspatial)
 
 #load site locations
 pnts <- read_xlsx('data//site_locations.xlsx')
@@ -213,18 +214,23 @@ mapview(wetlands) + mapview(pnts)
 #6.0 Plot Figure ---------------------------------------------------------------
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #6.1 Create AOI for plots ------------------------------------------------------
+
+#Define two wetland complexs (1 = QB, 2 = DB, TB, and ND)
+
 #Define wetland complexs
-complex_1 <- pnts %>% filter(Property == 'Baltimore Corner North' )
+
+#Soil cores
+complex_1 <- pnts %>% filter(`Site ID` == "QB")
 mapview(complex_1)
-complex_2 <- pnts %>% filter(Property == 'Baltimore Corner South'|Property == "Baltimore Corner")
+complex_2 <- pnts %>% filter(`Site ID` %in% c('ND','DB', 'TB'))
 mapview(complex_2)
-complex_3 <- pnts %>% filter(`Site ID` %in% c('ND', 'BD', 'TS', 'DK'))
+
+#Rain sampling
+complex_3 <- pnts %>% filter(`Site ID` %in% c('ND','TS'))
 mapview(complex_3)
-complex_4 <- pnts %>% filter(`Site ID` %in% c('DB', 'TA', 'TB', 'FN'))
-mapview(complex_4)
 
 #Create boxes around each complex
-box_fun<-function(xy){
+box_fun1<-function(xy){
   #Define bounding box
   box <- xy %>% 
     #Define box around points
@@ -240,18 +246,32 @@ box_fun<-function(xy){
   box
 }
 
+box_fun2<-function(xy){
+  #Define bounding box
+  box <- xy %>% 
+    #Define box around points
+    st_bbox() %>% st_as_sfc() %>% st_as_sf() %>% 
+    #Define Centroid of bbox
+    st_centroid() %>% 
+    #Add buffer to centroid
+    st_buffer(0.007) %>% 
+    #Define bbox of buffer
+    st_bbox() %>% st_as_sfc() %>% st_as_sf()
+  
+  #export box
+  box
+}
+
 #Define bbox for each wetland complex
-box_1 <- box_fun(complex_1)
+box_1 <- box_fun1(complex_1)
 mapview(box_1) + mapview(complex_1)  
 
-box_2 <- box_fun(complex_2)
+box_2 <- box_fun2(complex_2)
 mapview(box_2) + mapview(complex_2)  
 
-box_3 <- box_fun(complex_3)
+box_3 <- box_fun2(complex_3)
 mapview(box_3) + mapview(complex_3)  
 
-box_4 <- box_fun(complex_4)
-mapview(box_4) + mapview(complex_4)  
 
 #6.2 Create regional location panel --------------------------------------------
 state_map <- states %>% 
@@ -262,7 +282,10 @@ state_map <- states %>%
   theme_bw() + 
   theme(axis.text = element_text(size = 18)) +
   scale_x_continuous(breaks=c(-77,-75)) +
-  scale_y_continuous(breaks = c(37, 38, 39, 40))
+  scale_y_continuous(breaks = c(37, 38, 39, 40))+
+  annotation_scale(text_cex = 1.2) +
+  annotation_north_arrow(height = unit(1.5, "cm"), width = unit(1, "cm"), 
+                         pad_x = unit(0.3, "cm"), pad_y = unit(0.75, "cm")) 
 state_map
 
 emf(file = "docs/Delmarva_State_Map",width = 5, height = 9, bg = "transparent")
@@ -276,6 +299,7 @@ shed_map <- ggplot() +
   geom_sf(data = flow_net, col='darkblue', lwd=0.3, alpha = 0.7) + 
   geom_sf(data = shed,col="grey20", bg=NA, lwd=0.5) +
   geom_sf(data = aoi, lwd=1.3, col='darkred', bg = NA) +
+  annotation_scale(text_cex = 1.2) +
   theme_void()
 shed_map
 
@@ -296,7 +320,7 @@ df <- as.data.frame(naip_all_sites, xy=TRUE) %>%
   filter(y >= st_bbox(wetlands)$ymin) %>%
   filter(y <= st_bbox(wetlands)$ymax)
 
-#Plot 
+#Plot for soil cores
 aoi_map <- ggplot() +                    
     geom_sf(data = aoi)+
     geom_raster(
@@ -304,17 +328,36 @@ aoi_map <- ggplot() +
       aes(x = x, y =y),
       fill = rgb(r = df$lyr.1, g = df$lyr.2, b = df$lyr.3, maxColorValue = 1),
       show.legend = FALSE) +
-    geom_sf(data = wetlands, col = NA, bg="darkblue", alpha = .5) +
+    geom_sf(data = wetlands, col = NA, bg="darkblue", alpha = 0.9) +
     scale_fill_identity()+ 
-    #geom_sf(data = box_1, col="darkred", bg=NA, lwd=1.2) +
+    geom_sf(data = box_1, col="darkred", bg=NA, lwd=1.2) +
     geom_sf(data = box_2, col="darkred", bg=NA, lwd=1.2) +
-    geom_sf(data = box_3, col="darkred", bg=NA, lwd=1.2) +
-    geom_sf(data = box_4, col="darkred", bg=NA, lwd=1.2) +
+    annotation_scale(text_cex = 1,pad_x = unit(1.3, "cm"),pad_y = unit(-0.01, "cm")) +
     theme_void()
-aoi_map
+#aoi_map
 
-emf(file = "docs/Site_Overview_Boxes",width = 4, height = 6, bg = "transparent")
+emf(file = "docs/CoreSites_Overview_Boxes",width = 6, height = 4, bg = "transparent")
 aoi_map
+dev.off()
+
+#Plot for rain event
+aoi_map2 <- ggplot() +                    
+  geom_sf(data = aoi)+
+  geom_raster(
+    data = df,
+    aes(x = x, y =y),
+    fill = rgb(r = df$lyr.1, g = df$lyr.2, b = df$lyr.3, maxColorValue = 1),
+    show.legend = FALSE) +
+  geom_sf(data = wetlands, col = NA, bg="darkblue", alpha = 0.9) +
+  scale_fill_identity()+ 
+  geom_sf(data = box_3, col="darkred", bg=NA, lwd=1.2) +
+  annotation_scale(text_cex = 1,pad_x = unit(1.3, "cm"),,pad_y = unit(-0.01, "cm")) +
+  theme_void()
+
+aoi_map2
+
+emf(file = "docs/RainSites_Overview_Boxes",width = 6, height = 4, bg = "transparent")
+aoi_map2
 dev.off()
 
 
@@ -327,24 +370,23 @@ dem_2 <- crop(dem, box_2) %>% rasterToPoints() %>% as_tibble()
   colnames(dem_2) <- c("x", "y", "z")
 dem_3 <- crop(dem, box_3) %>% rasterToPoints() %>% as_tibble()
   colnames(dem_3) <- c("x", "y", "z")
-dem_4 <- crop(dem, box_4) %>% rasterToPoints() %>% as_tibble()
-  colnames(dem_4) <- c("x", "y", "z")
+
   
 #Crop wetlands for each complex
 wetlands_1 <- wetlands[box_1,]
 wetlands_2 <- wetlands[box_2,]
 wetlands_3 <- wetlands[box_3,]
-wetlands_4 <- wetlands[box_4,]
+
 
 #Crop study sites for each complex
 wetland_sites_1 <- wetland_sites[box_1,]
 wetland_sites_2 <- wetland_sites[box_2,]
 wetland_sites_3 <- wetland_sites[box_3,]
-wetland_sites_4 <- wetland_sites[box_4,]
+
 
 
 #create wetland complex maps ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#Complex map 1
+#Complex map 1 Soil Cores
 complex_map_1 <-ggplot() +
   geom_sf(data=box_1, bg=NA, col=NA) +
   geom_raster(data = dem_1, aes(x,y,fill=z)) +
@@ -357,7 +399,7 @@ complex_map_1 <-ggplot() +
   theme_void()
 complex_map_1
   
-#Complex map 2
+#Complex map 2 Soil cores
 complex_map_2 <-ggplot() +
   geom_sf(data=box_2, bg=NA, col=NA) +
   geom_raster(data = dem_2, aes(x,y,fill=z)) +
@@ -370,7 +412,7 @@ complex_map_2 <-ggplot() +
   theme_void()
 complex_map_2
 
-#Complex map 3
+#Complex map 3 - Rain event
 complex_map_3 <-ggplot() +
   geom_sf(data=box_3, bg=NA, col=NA) +
   geom_raster(data = dem_3, aes(x,y,fill=z)) +
@@ -383,82 +425,23 @@ complex_map_3 <-ggplot() +
   theme_void()
 complex_map_3
 
-#Complex map 4
-complex_map_4 <-ggplot() +
-  geom_sf(data=box_4, bg=NA, col=NA) +
-  geom_raster(data = dem_4, aes(x,y,fill=z)) +
-  scale_fill_gradientn(colours = hcl.colors(30, "grays"), guide='none') +
-  geom_sf(data = wetlands_4, bg="darkblue", alpha=0.25) +
-  geom_sf(data = wetland_sites_4, bg="darkblue", alpha=0.95) +
-  coord_sf(
-    xlim = c(st_coordinates(box_4)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_4)[,1] %>% max(., na.rm = T)-0.00025), 
-    ylim = c(st_coordinates(box_4)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_4)[,2] %>% max(., na.rm = T)- 0.0003)) +
-  theme_void()
-complex_map_4
 
-# 6.6 Wetland info plot --------------------------------------------------------
-#tidy data
-wetland_data <- wetland_data %>% 
-  dplyr::select(area_m2, perimeter_m, hand_m) %>% 
-  drop_na()
 
-#hydrograph
-wetland_area_plot <- wetland_data %>% 
-  #Start ggplot object
-  ggplot(aes(x=area_m2 , y=perimeter_m)) + 
-  #Add line data
-  geom_point(pch=19, cex=3, col="grey20") +
-  #Add best fit line
-  geom_smooth(method='lm', formula= y~x, lty=2, lwd=1.1, col="grey30", se=F) +
-  #Plot y-axis in log scale
-  scale_x_log10() +
-  #Add predefined black/white theme
-  theme_bw() +
-  #Change font size of axes
-  theme(
-    axis.title = element_text(size = 10), 
-    axis.text  = element_text(size = 8)
-  ) + 
-  #Add labels
-  xlab(expression("Wetland Area (m"^"2"*")")) + 
-  ylab("Wetland Perimeter (m)") 
-wetland_area_plot
-
-wetland_hand_plot <- wetland_data %>% 
-  #Start ggplot object
-  ggplot(aes(x=hand_m , y=perimeter_m)) + 
-  #Add line data
-  geom_point(pch=19, cex=3, col="grey20") +
-  #Add best fit line
-  #geom_smooth(method='lm', formula= y~x, lty=2, lwd=1.1, col="grey30", se=F) +
-  #Plot y-axis in log scale
-  scale_x_log10() +
-  #Add predefined black/white theme
-  theme_bw() +
-  #Change font size of axes
-  theme(
-    axis.title = element_text(size = 10), 
-    axis.text  = element_text(size = 8)
-  ) + 
-  #Add labels
-  xlab(expression("Wetland Area (m"^"2"*")")) + 
-  ylab("Height Above Nearest Drainage (m)") 
-wetland_hand_plot
 
 #6.7 Create panels of wetland complexes ----------------------------------------
-design <- "ABBCCCC
-           #BBCCCC
-           #BBCCCC
-           #BBCCCC
-           #DEHHH#
-           #DEHHH#
-           #FGHHH#
-           #FGHHH#"
-           
-(state_map + shed_map + (aoi_map) + free(complex_map_1) + free(complex_map_2) + free(complex_map_3) + free(complex_map_4) + free(wetland_area_plot)) +
-  plot_layout(design = design) +
-  plot_annotation(tag_levels = c("a"), tag_suffix = ")") &
-  theme(plot.tag = element_text(size = 10))
-
-ggsave("docs/site_map.png", width = 7, height = 5.5, units = "in", dpi = 300)
-
+#design <- "ABBCCCC
+#           #BBCCCC
+#           #BBCCCC
+#           #BBCCCC
+#           #DEHHH#
+#           #DEHHH#
+#           #FGHHH#
+#           #FGHHH#"
+#           
+#(state_map + shed_map + (aoi_map) + free(complex_map_1) + free(complex_map_2) + free(complex_map_3) + free(complex_map_4) + free(wetland_area_plot)) +
+#  plot_layout(design = design) +
+#  plot_annotation(tag_levels = c("a"), tag_suffix = ")") &
+#  theme(plot.tag = element_text(size = 10))
+#
+#ggsave("docs/site_map.png", width = 7, height = 5.5, units = "in", dpi = 300)
+#
