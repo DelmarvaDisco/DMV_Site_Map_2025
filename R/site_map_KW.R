@@ -25,6 +25,7 @@ library(tigris)    #State shape download
 library(nhdplusTools) #nhdplus download
 library(terrainr)  #Download NAIP imagery
 library(patchwork)
+library(devEMF) #export map files
 
 #load site locations
 pnts <- read_xlsx('data//site_locations.xlsx')
@@ -129,17 +130,16 @@ outlet <-
 
 #Identify NHD reach 
 start_comid <- discover_nhdplus_id(outlet, raindrop = F)
-choptank_comid <- as.character(start_comid$comid[1])
 
 #Snag flowline
 flow_net <- navigate_nldi(list(featureSource = "comid", 
-                               featureID = start_comid$comid[1]), 
+                               featureID = start_comid), 
                             mode = "upstreamTributaries", 
                             distance_km = 1000)
 
 #get nhdplus files
 subset_file <- tempfile(fileext = ".gpkg")
-subset <- subset_nhdplus(comids = as.integer(flow_net$UT$nhdplus_comid),
+subset <- subset_nhdplus(comids = as.integer(flow_net$UT_flowlines$nhdplus_comid),
                          output_file = subset_file,
                          nhdplus_data = 'download', 
                          flowline_only = FALSE,
@@ -157,7 +157,7 @@ flow_net <- flow_net$UT_flowlines
 nwi <- nwi[shed, ]
 
 #limit to freshwater forested wetlands
-nwi <- nwi %>% filter(WETLAND_TY == 'Freshwater Forested/Shrub Wetland')
+nwi <- nwi %>% filter(WETLAND_TYPE == 'Freshwater Forested/Shrub Wetland')
 
 #5.3 Wetland Delineation -------------------------------------------------------
 #write dem to temp file
@@ -257,13 +257,17 @@ mapview(box_4) + mapview(complex_4)
 state_map <- states %>% 
   ggplot() + 
   geom_sf() + 
-  geom_sf(data = shed, bg="grey60") +
+  geom_sf(data = shed, bg="darkgreen") +
   coord_sf(xlim=c(-77,-75), ylim = c(36.75, 40), clip="on")+
   theme_bw() + 
-  theme(axis.text = element_text(size = 8)) +
+  theme(axis.text = element_text(size = 18)) +
   scale_x_continuous(breaks=c(-77,-75)) +
   scale_y_continuous(breaks = c(37, 38, 39, 40))
 state_map
+
+emf(file = "docs/Delmarva_State_Map",width = 5, height = 9, bg = "transparent")
+state_map
+dev.off()
 
 #6.3 Create Choptank Watershed Map ---------------------------------------------
 shed_map <- ggplot() + 
@@ -274,6 +278,12 @@ shed_map <- ggplot() +
   geom_sf(data = aoi, lwd=1.3, col='darkred', bg = NA) +
   theme_void()
 shed_map
+
+
+emf(file = "docs/Choptank_Watershed_Map",width = 5, height = 9, bg = "transparent")
+shed_map
+dev.off()
+
 
 #6.4 Create panel of study landscape -------------------------------------------
 #Use this approach to print NAIP imagery (https://medium.com/@tobias.stalder.geo/plot-rgb-satellite-imagery-in-true-color-with-ggplot2-in-r-10bdb0e4dd1f)
@@ -296,12 +306,18 @@ aoi_map <- ggplot() +
       show.legend = FALSE) +
     geom_sf(data = wetlands, col = NA, bg="darkblue", alpha = .5) +
     scale_fill_identity()+ 
-    geom_sf(data = box_1, col="darkred", bg=NA, lwd=1.2) +
+    #geom_sf(data = box_1, col="darkred", bg=NA, lwd=1.2) +
     geom_sf(data = box_2, col="darkred", bg=NA, lwd=1.2) +
     geom_sf(data = box_3, col="darkred", bg=NA, lwd=1.2) +
     geom_sf(data = box_4, col="darkred", bg=NA, lwd=1.2) +
     theme_void()
 aoi_map
+
+emf(file = "docs/Site_Overview_Boxes",width = 4, height = 6, bg = "transparent")
+aoi_map
+dev.off()
+
+
 
 # 6.5 Plot wetland complexes ---------------------------------------------------
 #Crop DEM for each complex
