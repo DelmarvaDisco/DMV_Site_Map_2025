@@ -280,11 +280,11 @@ state_map <- states %>%
   geom_sf(data = shed, bg="darkgreen") +
   coord_sf(xlim=c(-77,-75), ylim = c(36.75, 40), clip="on")+
   theme_bw() + 
-  theme(axis.text = element_text(size = 18)) +
+  theme(axis.text = element_text(size = 22)) +
   scale_x_continuous(breaks=c(-77,-75)) +
   scale_y_continuous(breaks = c(37, 38, 39, 40))+
-  annotation_scale(text_cex = 1.2) +
-  annotation_north_arrow(height = unit(1.5, "cm"), width = unit(1, "cm"), 
+  annotation_scale(text_cex = 1.4) +
+  annotation_north_arrow(height = unit(2, "cm"), width = unit(1.5, "cm"), 
                          pad_x = unit(0.3, "cm"), pad_y = unit(0.75, "cm")) 
 state_map
 
@@ -396,6 +396,7 @@ complex_map_1 <-ggplot() +
   coord_sf(
      xlim = c(st_coordinates(box_1)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_1)[,1] %>% max(., na.rm = T)-0.00025), 
      ylim = c(st_coordinates(box_1)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_1)[,2] %>% max(., na.rm = T)- 0.0003)) +
+  annotation_scale(text_cex = 1,pad_x = unit(1.3, "cm"),pad_y = unit(-0.01, "cm")) +
   theme_void()
 complex_map_1
   
@@ -409,6 +410,7 @@ complex_map_2 <-ggplot() +
   coord_sf(
     xlim = c(st_coordinates(box_2)[,1] %>% min(., na.rm = T )+0.00025, st_coordinates(box_2)[,1] %>% max(., na.rm = T)-0.00025), 
     ylim = c(st_coordinates(box_2)[,2] %>% min(., na.rm = T )+0.0003, st_coordinates(box_2)[,2] %>% max(., na.rm = T)- 0.0003)) +
+  annotation_scale(text_cex = 1,pad_x = unit(1.3, "cm"),pad_y = unit(-0.01, "cm")) +
   theme_void()
 complex_map_2
 
