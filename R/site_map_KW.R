@@ -238,7 +238,7 @@ box_fun1<-function(xy){
     #Define Centroid of bbox
     st_centroid() %>% 
     #Add buffer to centroid
-    st_buffer(0.003) %>% 
+    st_buffer(0.001) %>% 
     #Define bbox of buffer
     st_bbox() %>% st_as_sfc() %>% st_as_sf()
   
@@ -446,4 +446,5 @@ complex_map_3
 #  theme(plot.tag = element_text(size = 10))
 #
 #ggsave("docs/site_map.png", width = 7, height = 5.5, units = "in", dpi = 300)
-#
+
+
