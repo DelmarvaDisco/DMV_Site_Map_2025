@@ -274,10 +274,38 @@ mapview(box_3) + mapview(complex_3)
 
 
 #6.2 Create regional location panel --------------------------------------------
+
+# Load relevant states/counties (focus on Delmarva: DE, eastern MD/VA) for outlining peninsula
+
+#Delaware counties (crop northern New Castle at edge of DMV peninsula)
+de_counties <- counties("DE", cb = TRUE) %>% 
+  filter(!str_detect(NAME,"New Castle"))
+new_castle <- counties("DE", cb = TRUE) %>% filter(str_detect(NAME,"New Castle"))
+new_castle_cropped <- st_crop(
+  new_castle,c(xmin = -75.78, xmax = -75.35, ymin = 39.29, ymax = 39.53))
+
+#Maryland (crop Cecil at edge of DMV peninsula)
+md_counties <- counties("MD", cb = TRUE) %>%
+  filter(str_detect(NAME, "Kent|Queen Anne's|Talbot|Caroline|Dorchester|Wicomico|Somerset|Worcester"))
+cecil <- counties("MD", cb = TRUE) %>% filter(str_detect(NAME, "Cecil"))
+cecil_cropped <- st_crop(
+  cecil,c(xmin = -76.15, xmax = -75.65, ymin = 39.29, ymax = 39.53))
+
+#Virginia counties (no crop needed)
+va_counties <- counties("VA", cb = TRUE) %>%
+  filter(str_detect(NAME, "Accomack|Northampton"))  # Eastern Shore
+
+# Union into single Delmarva shape
+delmarva <- bind_rows(de_counties,new_castle_cropped,md_counties,cecil_cropped,va_counties) %>%
+  st_union() %>%
+  st_sf() %>%
+  st_cast("POLYGON")
+
 state_map <- states %>% 
   ggplot() + 
   geom_sf() + 
   geom_sf(data = shed, bg="darkgreen") +
+  geom_sf(data = delmarva, fill = NA, color = "darkblue", linewidth = 0.8) +
   coord_sf(xlim=c(-77,-75), ylim = c(36.75, 40), clip="on")+
   theme_bw() + 
   theme(axis.text = element_text(size = 22)) +
