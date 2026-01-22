@@ -321,6 +321,7 @@ state_map
 dev.off()
 
 #6.3 Create Choptank Watershed Map ---------------------------------------------
+
 shed_map <- ggplot() + 
   geom_sf(data = shed,col="grey20", lwd=0.1) +
   geom_sf(data = nwi, bg="darkgreen", lwd=NA) +
